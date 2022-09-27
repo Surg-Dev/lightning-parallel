@@ -44,7 +44,7 @@ def find_adj(coords, grid_shape):
 
 
 def main():
-    grid_size = 100
+    grid_size = 40
     lightning_coords = [(grid_size//2, grid_size//2)]
 
     eta = 2
