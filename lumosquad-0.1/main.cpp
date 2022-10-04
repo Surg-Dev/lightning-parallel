@@ -399,6 +399,7 @@ int main(int argc, char** argv) {
 
     // loop simulation until it hits a terminator
     cout << " Total particles added: ";
+    glutInit(&argc, argv);
     glutMain();
 
     return 0;
