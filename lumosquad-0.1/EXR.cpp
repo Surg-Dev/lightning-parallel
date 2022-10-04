@@ -5,7 +5,7 @@
 // LumosQuad - A Lightning Generator
 // Copyright 2007
 // The University of North Carolina at Chapel Hill
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,13 @@
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details.
-// 
+//
 //  You should have received a copy of the GNU General Public License
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-//  The University of North Carolina at Chapel Hill makes no representations 
-//  about the suitability of this software for any purpose. It is provided 
+//  The University of North Carolina at Chapel Hill makes no representations
+//  about the suitability of this software for any purpose. It is provided
 //  "as is" without express or implied warranty.
 //
 //  Permission to use, copy, modify and distribute this software and its
@@ -43,12 +43,12 @@
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program uses OpenEXR, which has the following restrictions:
-// 
+//
 //  Copyright (c) 2002, Industrial Light & Magic, a division of Lucas
 //  Digital Ltd. LLC
-// 
+//
 //  All rights reserved.
-// 
+//
 //  Redistribution and use in source and binary forms, with or without
 //  modification, are permitted provided that the following conditions are
 //  met:
@@ -60,8 +60,8 @@
 //  distribution.
 //  *       Neither the name of Industrial Light & Magic nor the names of
 //  its contributors may be used to endorse or promote products derived
-//  from this software without specific prior written permission. 
-// 
+//  from this software without specific prior written permission.
+//
 
 #include "EXR.h"
 
@@ -69,28 +69,21 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
-EXR::EXR()
-{
+EXR::EXR() {}
 
-}
+EXR::~EXR() {}
 
-EXR::~EXR()
-{
+void EXR::writeEXR(const char filename[], float* image, int width, int height) {
+    // Imf::Rgba* exrImage = new Imf::Rgba[width * height];
+    // for (int x = 0; x < width * height; x++)
+    // {
+    //   exrImage[x].r = exrImage[x].g = exrImage[x].b = image[x];
+    //   exrImage[x].a = 1.0f;
+    // }
 
-}
+    // Imf::RgbaOutputFile file (filename, width, height);
+    // file.setFrameBuffer (exrImage, 1, width);
+    // file.writePixels (height);
 
-void EXR::writeEXR(const char filename[], float* image, int width, int height)
-{
-  Imf::Rgba* exrImage = new Imf::Rgba[width * height];
-  for (int x = 0; x < width * height; x++)
-  {
-    exrImage[x].r = exrImage[x].g = exrImage[x].b = image[x];
-    exrImage[x].a = 1.0f;
-  }
-  
-  Imf::RgbaOutputFile file (filename, width, height);
-  file.setFrameBuffer (exrImage, 1, width);
-  file.writePixels (height);
-
-  delete[] exrImage;
+    // delete[] exrImage;
 }

@@ -5,7 +5,7 @@
 // LumosQuad - A Lightning Generator
 // Copyright 2007
 // The University of North Carolina at Chapel Hill
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,13 @@
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details.
-// 
+//
 //  You should have received a copy of the GNU General Public License
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-//  The University of North Carolina at Chapel Hill makes no representations 
-//  about the suitability of this software for any purpose. It is provided 
+//  The University of North Carolina at Chapel Hill makes no representations
+//  about the suitability of this software for any purpose. It is provided
 //  "as is" without express or implied warranty.
 //
 //  Permission to use, copy, modify and distribute this software and its
@@ -43,12 +43,12 @@
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program uses OpenEXR, which has the following restrictions:
-// 
+//
 //  Copyright (c) 2002, Industrial Light & Magic, a division of Lucas
 //  Digital Ltd. LLC
-// 
+//
 //  All rights reserved.
-// 
+//
 //  Redistribution and use in source and binary forms, with or without
 //  modification, are permitted provided that the following conditions are
 //  met:
@@ -60,131 +60,127 @@
 //  distribution.
 //  *       Neither the name of Industrial Light & Magic nor the names of
 //  its contributors may be used to endorse or promote products derived
-//  from this software without specific prior written permission. 
-// 
+//  from this software without specific prior written permission.
+//
 
 #ifndef QUAD_POISSON_H
 #define QUAD_POISSON_H
 
-#include <gl/glut.h>
+#include <GL/glut.h>
+
 #include <cstdlib>
-#include "CELL.h"
+#include <iostream>
 #include <list>
+
+#include "BlueNoise/BLUE_NOISE.h"
+#include "CELL.h"
 #include "CG_SOLVER.h"
 #include "CG_SOLVER_SSE.h"
-#include "BlueNoise/BLUE_NOISE.h"
-
-#include <iostream>
 
 using namespace std;
 
 //////////////////////////////////////////////////////////////////////
 /// \brief Quadtree Poisson solver
 //////////////////////////////////////////////////////////////////////
-class QUAD_POISSON  
-{
-public:
-  /// \brief quadtree constructor 
-  ///
-  /// \param xRes         maximum x resolution
-  /// \param yRes         maximum y resolution
-  /// \param iterations   maximum conjugate gradient iterations
-	QUAD_POISSON(int xRes, 
-               int yRes,
-               int iterations = 10);
-  
-  //! destructor
-	virtual ~QUAD_POISSON();
- 
-  /// \brief OpenGL drawing function
-  /// 
-  /// \param cell         internally used param, should always be NULL externally
-  void draw(CELL* cell = NULL);
+class QUAD_POISSON {
+   public:
+    /// \brief quadtree constructor
+    ///
+    /// \param xRes         maximum x resolution
+    /// \param yRes         maximum y resolution
+    /// \param iterations   maximum conjugate gradient iterations
+    QUAD_POISSON(int xRes, int yRes, int iterations = 10);
 
-  /// \brief Draw a single OpenGL cell  
-  ///
-  /// \param cell         quadtree cell to draw
-  /// \param r            red intensity to draw
-  /// \param g            green intensity to draw
-  /// \param b            blue intensity to draw
-  void drawCell(CELL* cell, 
-                float r = 1.0f, 
-                float g = 0.0f, 
-                float b = 0.0f);
+    //! destructor
+    virtual ~QUAD_POISSON();
 
-  //! Solve the Poisson problem
-  int solve();  
- 
-  /// \brief insert point at maximum subdivision level
-  ///
-  /// \param xPos         x position to insert at
-  /// \param yPos         y position to insert at
-  CELL* insert(float xPos, float yPos);
+    /// \brief OpenGL drawing function
+    ///
+    /// \param cell         internally used param, should always be NULL
+    /// externally
+    void draw(CELL* cell = NULL);
 
-  /// \brief insert point at maximum subdivision level
-  /// 
-  /// \param xPos         grid cell x index to insert
-  /// \param yPos         grid cell y index to insert
-  CELL* insert(int xPos, int yPos) { 
-    return insert((float)xPos / _maxRes, (float)yPos / _maxRes);
-  };
-  
-  /// \brief get all the leaf nodes
-  /// \return Leaves are returned in the 'leaves' param
-  void getAllLeaves(list<CELL*>& leaves, CELL* currentCell = NULL);
-  
-  /// \brief  get all the leaf nodes at finest subdivision level
-  /// \return Leaves are  returned in the 'leaves' param
-  list<CELL*>& getSmallestLeaves() { return _smallestLeaves; };
+    /// \brief Draw a single OpenGL cell
+    ///
+    /// \param cell         quadtree cell to draw
+    /// \param r            red intensity to draw
+    /// \param g            green intensity to draw
+    /// \param b            blue intensity to draw
+    void drawCell(CELL* cell, float r = 1.0f, float g = 0.0f, float b = 0.0f);
 
-  //! maximum resolution accessor
-  int& maxRes() { return _maxRes; }
+    //! Solve the Poisson problem
+    int solve();
 
-  //! maximum depth accessor
-  int& maxDepth() { return _maxDepth; };
-  
-  //! get leaf at coordinate (x,y)
-  CELL* getLeaf(float xPos, float yPos);
-  
-private:
-  //! root of the quadtree
-  CELL* _root;
+    /// \brief insert point at maximum subdivision level
+    ///
+    /// \param xPos         x position to insert at
+    /// \param yPos         y position to insert at
+    CELL* insert(float xPos, float yPos);
 
-  //! maximum resolution of quadtree
-  int _maxRes;
+    /// \brief insert point at maximum subdivision level
+    ///
+    /// \param xPos         grid cell x index to insert
+    /// \param yPos         grid cell y index to insert
+    CELL* insert(int xPos, int yPos) {
+        return insert((float)xPos / _maxRes, (float)yPos / _maxRes);
+    };
 
-  //! maxmimum depth of quadtree
-  int _maxDepth;
-  
-  //! dependant leaves
-  list<CELL*> _emptyLeaves;
+    /// \brief get all the leaf nodes
+    /// \return Leaves are returned in the 'leaves' param
+    void getAllLeaves(list<CELL*>& leaves, CELL* currentCell = NULL);
 
-  //! smallest leaves
-  list<CELL*> _smallestLeaves;
-  
-  //! current Poisson solver
-  CG_SOLVER* _solver;
-  
-  //! balance quadtree
-  void balance();
+    /// \brief  get all the leaf nodes at finest subdivision level
+    /// \return Leaves are  returned in the 'leaves' param
+    list<CELL*>& getSmallestLeaves() { return _smallestLeaves; };
 
-  //! get the leaf nodes not on the boundary
-  void getEmptyLeaves(list<CELL*>& leaves, CELL* currentCell = NULL);
-  
-  //! build the neighbor lists of the cells
-  void buildNeighbors();
+    //! maximum resolution accessor
+    int& maxRes() { return _maxRes; }
 
-  //! delete ghost cells
-  void deleteGhosts(CELL* currentCell = NULL);
+    //! maximum depth accessor
+    int& maxDepth() { return _maxDepth; };
 
-  //! Blue noise function
-  BLUE_NOISE* _noiseFunc;
+    //! get leaf at coordinate (x,y)
+    CELL* getLeaf(float xPos, float yPos);
 
-  //! Blue noise sample locations
-  bool* _noise;
+   private:
+    //! root of the quadtree
+    CELL* _root;
 
-  //! check if a cell hits a noise node
-  void setNoise(CELL* cell);
+    //! maximum resolution of quadtree
+    int _maxRes;
+
+    //! maxmimum depth of quadtree
+    int _maxDepth;
+
+    //! dependant leaves
+    list<CELL*> _emptyLeaves;
+
+    //! smallest leaves
+    list<CELL*> _smallestLeaves;
+
+    //! current Poisson solver
+    CG_SOLVER* _solver;
+
+    //! balance quadtree
+    void balance();
+
+    //! get the leaf nodes not on the boundary
+    void getEmptyLeaves(list<CELL*>& leaves, CELL* currentCell = NULL);
+
+    //! build the neighbor lists of the cells
+    void buildNeighbors();
+
+    //! delete ghost cells
+    void deleteGhosts(CELL* currentCell = NULL);
+
+    //! Blue noise function
+    BLUE_NOISE* _noiseFunc;
+
+    //! Blue noise sample locations
+    bool* _noise;
+
+    //! check if a cell hits a noise node
+    void setNoise(CELL* cell);
 };
 
 #endif

@@ -5,7 +5,7 @@
 // LumosQuad - A Lightning Generator
 // Copyright 2007
 // The University of North Carolina at Chapel Hill
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,13 @@
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details.
-// 
+//
 //  You should have received a copy of the GNU General Public License
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-//  The University of North Carolina at Chapel Hill makes no representations 
-//  about the suitability of this software for any purpose. It is provided 
+//  The University of North Carolina at Chapel Hill makes no representations
+//  about the suitability of this software for any purpose. It is provided
 //  "as is" without express or implied warranty.
 //
 //  Permission to use, copy, modify and distribute this software and its
@@ -43,12 +43,12 @@
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program uses OpenEXR, which has the following restrictions:
-// 
+//
 //  Copyright (c) 2002, Industrial Light & Magic, a division of Lucas
 //  Digital Ltd. LLC
-// 
+//
 //  All rights reserved.
-// 
+//
 //  Redistribution and use in source and binary forms, with or without
 //  modification, are permitted provided that the following conditions are
 //  met:
@@ -60,33 +60,33 @@
 //  distribution.
 //  *       Neither the name of Industrial Light & Magic nor the names of
 //  its contributors may be used to endorse or promote products derived
-//  from this software without specific prior written permission. 
-// 
+//  from this software without specific prior written permission.
+//
 
 #ifndef EXR_H
 #define EXR_H
-#include <half.h>
-#include <ImfRgbaFile.h>
-#include <ImfStringAttribute.h>
-#include <ImfMatrixAttribute.h>
-#include <ImfArray.h>
+#include <OpenEXR/ImfArray.h>
+#include <OpenEXR/ImfMatrixAttribute.h>
+#include <OpenEXR/ImfRgbaFile.h>
+#include <OpenEXR/ImfStringAttribute.h>
+#include <OpenEXR/half.h>
 
 ////////////////////////////////////////////////////////////////////
 /// \brief Wrapper for the ILM OpenEXR routines
 ////////////////////////////////////////////////////////////////////
-class EXR  
-{
-public:
-	EXR();
-	virtual ~EXR();
+class EXR {
+   public:
+    EXR();
+    virtual ~EXR();
 
-  /// \brief write a float array out to an EXR file
-  ///
-  /// \param filename     name of output file
-  /// \param image        float array to write to an EXR file
-  /// \param width        width of float array
-  /// \param height       height of float array
-  static void writeEXR(const char* filename, float* image, int width, int height);
+    /// \brief write a float array out to an EXR file
+    ///
+    /// \param filename     name of output file
+    /// \param image        float array to write to an EXR file
+    /// \param width        width of float array
+    /// \param height       height of float array
+    static void writeEXR(const char* filename, float* image, int width,
+                         int height);
 };
 
 #endif

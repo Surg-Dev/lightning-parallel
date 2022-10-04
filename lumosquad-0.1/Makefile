@@ -1,0 +1,2 @@
+all:
+	$(CC) -o lumosquad -Wno-unused-result -O3 main.cpp APSF.cpp CELL.cpp CG_SOLVER.cpp DAG.cpp EXR.cpp FFT.cpp QUAD_DBM_2D.cpp QUAD_POISSON.cpp ppm/ppm.cpp BlueNoise/RNG.cpp BlueNoise/BLUE_NOISE.cpp BlueNoise/RangeList.cpp -lm -lfftw3 -lGL -lGLU -lglut -lHalf -lIex -lIlmThread -lpthread -lstdc++

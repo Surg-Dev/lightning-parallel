@@ -5,7 +5,7 @@
 // LumosQuad - A Lightning Generator
 // Copyright 2007
 // The University of North Carolina at Chapel Hill
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,13 @@
 //  but WITHOUT ANY WARRANTY; without even the implied warranty of
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details.
-// 
+//
 //  You should have received a copy of the GNU General Public License
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 //
-//  The University of North Carolina at Chapel Hill makes no representations 
-//  about the suitability of this software for any purpose. It is provided 
+//  The University of North Carolina at Chapel Hill makes no representations
+//  about the suitability of this software for any purpose. It is provided
 //  "as is" without express or implied warranty.
 //
 //  Permission to use, copy, modify and distribute this software and its
@@ -43,12 +43,12 @@
 ///////////////////////////////////////////////////////////////////////////////////
 //
 //  This program uses OpenEXR, which has the following restrictions:
-// 
+//
 //  Copyright (c) 2002, Industrial Light & Magic, a division of Lucas
 //  Digital Ltd. LLC
-// 
+//
 //  All rights reserved.
-// 
+//
 //  Redistribution and use in source and binary forms, with or without
 //  modification, are permitted provided that the following conditions are
 //  met:
@@ -60,16 +60,18 @@
 //  distribution.
 //  *       Neither the name of Industrial Light & Magic nor the names of
 //  its contributors may be used to endorse or promote products derived
-//  from this software without specific prior written permission. 
-// 
+//  from this software without specific prior written permission.
+//
 
 #ifndef APSF_H
 #define APSF_H
 
+#include <GL/glut.h>
+
 #include <cmath>
-#include <gl/glut.h>
 #include <vector>
-#include "ppm\ppm.hpp"
+
+#include "ppm/ppm.hpp"
 
 using namespace std;
 
@@ -80,76 +82,74 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////
 /// \brief Generates the rendering filter
 ////////////////////////////////////////////////////////////////////
-class APSF  
-{
-public:
-  //! constructor
-	APSF(int res = 512);
-  //! destructor
-	virtual ~APSF();
+class APSF {
+   public:
+    //! constructor
+    APSF(int res = 512);
+    //! destructor
+    virtual ~APSF();
 
-  //! read in an APSF file
-  void read(const char* filename);
-  //! write out an APSF file
-  void write(const char* filename);
-  //! write out the current kernel to a PPM file
-  void writePPM(const char* filename);
-  
-  //! generate one line of the kernel and spin it radially
-  void generateKernelFast();
+    //! read in an APSF file
+    void read(const char* filename);
+    //! write out an APSF file
+    void write(const char* filename);
+    //! write out the current kernel to a PPM file
+    void writePPM(const char* filename);
 
-  //! resolution of current kernel
-  int res() { return _res; };
-  
-  //! returns the float array for the kernel
-  float* kernel() { return _kernel; };
-  
-private:
-  //! kernel resolution
-  int     _res;
-  //! convolution kernel
-  float*  _kernel;
+    //! generate one line of the kernel and spin it radially
+    void generateKernelFast();
 
-  ////////////////////////////////////////////////////////////////////
-  // APSF components
-  ////////////////////////////////////////////////////////////////////
+    //! resolution of current kernel
+    int res() { return _res; };
 
-  // scattering parameters
-  float _q;
-  float _T;
-  float _I0;
-  float _sigma;
-  float _R;
-  float _D;
+    //! returns the float array for the kernel
+    float* kernel() { return _kernel; };
 
-  float _retinaSize;
-  float _eyeSize;
-  
-  //! number of coefficients
-  int _maxTerms;
-  
-  //! function value at a point
-  float pointAPSF(float mu);
-  
-  ////////////////////////////////////////////////////////////////////
-  // auxiliary functions
-  ////////////////////////////////////////////////////////////////////
-  float legendreM(int m, float mu);
-  float gM(float I0, int m) {
-    return (m == 0) ? 0.0f : exp(-(betaM(m, _q) * _T + alphaM(m) * log(_T)));
-  };
-  float alphaM(float m) { 
-    return m + 1.0f;
-  };
-  float betaM(float m, float q) {
-    return ((2.0f * m + 1.0f) / m) * (1.0f - pow(q, (int)m - 1));
-  };
-  float factorial(float x) {
-    return (x <= 1.0f) ? 1.0f : x * factorial(x - 1.0f);
-  };
-  float choose(float x, float y) {
-    return factorial(x) / (factorial(y) * factorial(x - y));
-  };
+   private:
+    //! kernel resolution
+    int _res;
+    //! convolution kernel
+    float* _kernel;
+
+    ////////////////////////////////////////////////////////////////////
+    // APSF components
+    ////////////////////////////////////////////////////////////////////
+
+    // scattering parameters
+    float _q;
+    float _T;
+    float _I0;
+    float _sigma;
+    float _R;
+    float _D;
+
+    float _retinaSize;
+    float _eyeSize;
+
+    //! number of coefficients
+    int _maxTerms;
+
+    //! function value at a point
+    float pointAPSF(float mu);
+
+    ////////////////////////////////////////////////////////////////////
+    // auxiliary functions
+    ////////////////////////////////////////////////////////////////////
+    float legendreM(int m, float mu);
+    float gM(float I0, int m) {
+        return (m == 0) ? 0.0f
+                        : exp(-(betaM(m, _q) * _T + alphaM(m) * log(_T)));
+    };
+    float alphaM(float m) { return m + 1.0f; };
+    float betaM(float m, float q) {
+        return ((2.0f * m + 1.0f) / m) * (1.0f - pow(q, (int)m - 1));
+    };
+    float factorial(float x) {
+        return (x <= 1.0f) ? 1.0f : x * factorial(x - 1.0f);
+    };
+    float choose(float x, float y) {
+        return factorial(x) / (factorial(y) * factorial(x - y));
+    };
 };
 
 #endif
