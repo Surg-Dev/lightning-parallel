@@ -1,4 +1,4 @@
-import glob
+import os
 import pickle
 
 import numpy as np
@@ -38,12 +38,23 @@ def convert_problem(problem):
 
 
 if __name__ == '__main__':
-    files = glob.glob('data/*.pickle')
-    dataset = []
-    for i in tqdm(range(25000)):
-        file = files[i]
-        with open(file, 'rb') as f:
-            problem = pickle.load(f)
-            dataset.append(convert_problem(problem))
 
-    torch.save(dataset, 'data/dataset.pt')
+    import sys
+
+    if len(sys.argv) != 2:
+        print('Usage: python convert.py <folder>')
+        exit(1)
+
+    data_folder = sys.argv[1]
+
+    dataset = []
+    for folder in tqdm(os.listdir(data_folder)):
+        all_files = os.listdir(os.path.join(data_folder, folder))
+        # choose at most 5 random files
+        files = np.random.choice(all_files, min(
+            5, len(all_files)), replace=False)
+        for file in files:
+            dataset.append(convert_problem(pickle.load(
+                open(os.path.join(data_folder, folder, file), 'rb'))))
+
+    torch.save(dataset, 'dataset.pt')

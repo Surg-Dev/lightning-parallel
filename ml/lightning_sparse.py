@@ -88,6 +88,15 @@ def find_adj(coords):
             adj.add((y, x-1))
         if x < N - 1:
             adj.add((y, x+1))
+        # diagonals
+        if y > 0 and x > 0:
+            adj.add((y-1, x-1))
+        if y > 0 and x < N - 1:
+            adj.add((y-1, x+1))
+        if y < N - 1 and x > 0:
+            adj.add((y+1, x-1))
+        if y < N - 1 and x < N - 1:
+            adj.add((y+1, x+1))
     return list(adj - set(coords))
 
 

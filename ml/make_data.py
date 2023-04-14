@@ -30,8 +30,8 @@ def make_initial_lightning(boundaries):
             return [(y, x)]
 
 
-def save_grid(grid, name, i, boundaries, lightning_coords, adj):
-    folder = f'data2/{name}'
+def save_grid(folder, grid, name, i, boundaries, lightning_coords, adj):
+    folder = f'{folder}/{name}'
     os.makedirs(folder, exist_ok=True)
 
     with open(f'{folder}/{i}.pickle', 'wb') as f:
@@ -45,6 +45,14 @@ def save_grid(grid, name, i, boundaries, lightning_coords, adj):
 
 if __name__ == '__main__':
 
+    import sys
+
+    if len(sys.argv) != 2:
+        print('Usage: python make_data.py <folder>')
+        exit(1)
+
+    folder = sys.argv[1]
+
     iteration = 0
     while True:
         print(f'Iteration {iteration}')
@@ -57,7 +65,7 @@ if __name__ == '__main__':
             grid = solve_problem(lightning_coords, boundaries)
             possible_next_lightning = find_adj(lightning_coords)
 
-            save_grid(grid, name, i, boundaries, lightning_coords,
+            save_grid(folder, grid, name, i, boundaries, lightning_coords,
                       possible_next_lightning)
 
             next_lightning = choose_next_lightning(

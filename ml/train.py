@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-
+from torch.utils.data import random_split
+import numpy as np
+from lightning_sparse import N
 
 # based off of https://medium.com/analytics-vidhya/unet-implementation-in-pytorch-idiot-developer-da40d955f201
+
 
 class conv_block(nn.Module):
     def __init__(self, in_c, out_c):
@@ -101,45 +104,142 @@ class build_unet(nn.Module):
 
 
 def custom_loss(y, y_hat, mask):
-    mask = y_hat > 0
-    return nn.MSELoss()(y_hat * mask, y * mask)
+    mask = y > 0
+    return nn.MSELoss()(y_hat * mask, y * mask) * (N * N) / mask.sum()
+    # return nn.CrossEntropyLoss()(y_hat * mask, y * mask) / mask.sum()
+
+
+def simulate_one(model, x, y, mask):
+    y_hat = model(x) * mask
+
+    import matplotlib.pyplot as plt
+    plt.imshow(y_hat[0].cpu().detach().numpy().flatten().reshape(N, N))
+    plt.show()
+    plt.imshow(y[0].cpu().detach().numpy().flatten().reshape(N, N))
+    plt.show()
+
+    eta = 2
+    y_hat = (y_hat * mask) ** eta / mask.sum()
+    import numpy as np
+
+    next_choice_by_probability_distribution = np.random.choice(
+        np.arange(N * N), p=y_hat[0].cpu().detach().numpy().flatten())
+    next_choice = np.unravel_index(
+        next_choice_by_probability_distribution, (N, N))
+
+
+def simulate_random():
+    from make_data import make_initial_boundaries, make_initial_lightning, display_lightning
+    from lightning_sparse import solve_problem, find_adj, choose_next_lightning
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = build_unet().to(device)
+    model.load_state_dict(torch.load('model.pt'))
+    model.eval()
+
+    boundaries = make_initial_boundaries()
+    lightning_coords = make_initial_lightning(boundaries)
+
+    while True:
+        display_lightning(lightning_coords, boundaries)
+
+        x = np.zeros((N, N))
+        for lightning in lightning_coords:
+            x[lightning] = -1
+
+        for boundary in boundaries:
+            x[boundary] = 1
+
+        x = torch.from_numpy(x).float().reshape(1, 1, N, N).to(device)
+        grid = model(x).cpu().detach().numpy().reshape(N, N)
+        grid[grid < 0] = 0
+        import matplotlib.pyplot as plt
+        plt.imshow(grid)
+        plt.show()
+
+        # grid = solve_problem(lightning_coords, boundaries)
+        possible_next_lightning = find_adj(lightning_coords)
+
+        mask = np.zeros((N, N))
+        for possible in possible_next_lightning:
+            mask[possible] = 1
+
+        grid2 = grid * mask
+        plt.imshow(grid2)
+        plt.show()
+
+        actual = solve_problem(lightning_coords, boundaries) * mask
+        plt.imshow(actual)
+        plt.show()
+
+        next_lightning = choose_next_lightning(
+            grid, possible_next_lightning)
+
+        if grid[next_lightning] == 1:
+            break
+
+        lightning_coords.append(next_lightning)
+
+
+def simulate():
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = build_unet().to(device)
+    model.load_state_dict(torch.load('model.pt'))
+    model.eval()
+
+    dataset = torch.load('originalset.pt')
+    val_set, _ = dataset[100:], dataset[:100]
+
+    # test the model
+    testloader = DataLoader(val_set, pin_memory=True)
+    import matplotlib.pyplot as plt
+
+    for _, (x, (y, mask)) in enumerate(tqdm(testloader)):
+        x = x.to(device)
+        y = y.to(device)
+        mask = mask.to(device)
+        simulate_one(model, x, y, mask)
 
 
 def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = torch.load('data/dataset.pt')
+    dataset = torch.load('dataset.pt')
+    # _, train_set = dataset[:100], dataset[100:]
+    train_set = dataset
+
     model = build_unet().to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    dataloader = DataLoader(dataset, batch_size=16,
-                            shuffle=True, num_workers=4, pin_memory=True)
+
+    trainloader = DataLoader(train_set, batch_size=16,
+                             shuffle=True, num_workers=4, pin_memory=True)
 
     losses = []
+    for _, (x, (y, mask)) in enumerate(tqdm(trainloader)):
+        x = x.to(device)
+        y = y.to(device)
+        mask = mask.to(device)
+        y_hat = model(x)
+        loss = custom_loss(y, y_hat, mask)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
 
-    for epoch in range(10):
-        print(f'Epoch {epoch}')
+        losses.append(loss.item())
 
-        for _, (x, (y, mask)) in enumerate(tqdm(dataloader)):
-            x = x.to(device)
-            y = y.to(device)
-            mask = mask.to(device)
-            y_hat = model(x)
-            loss = custom_loss(y, y_hat, mask)
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            losses.append(loss.item())
-
-        import matplotlib.pyplot as plt
-        plt.plot(losses)
-        plt.show()
-
-    torch.save(model, 'data/model.pt')
+    torch.save(model.state_dict(), 'model.pt')
+    import matplotlib.pyplot as plt
+    plt.plot(losses)
+    plt.show()
 
 
 if __name__ == "__main__":
-    # inputs = torch.randn((2, 1, 64, 64))
+    # inputs = torch.randn((2, 1, 128, 128))
     # model = build_unet()
     # y = model(inputs)
     # print(y.shape)
-    train()
+    # train()
+    simulate_random()
