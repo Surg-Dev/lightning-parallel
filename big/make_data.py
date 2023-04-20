@@ -1,13 +1,15 @@
-import numpy as np
-import random
-
 import os
+import random
+import shutil
+import struct
+import subprocess
 import sys
 import tempfile
-
-from tqdm import tqdm
 from uuid import uuid4
+
+import numpy as np
 import torch
+from tqdm import tqdm
 
 N = 256
 
@@ -98,19 +100,18 @@ def save_problem(problem, filename):
                 f.write(bytes((pixel >> 16 & 0xFF, pixel >> 8 & 0xFF, pixel & 0xFF)))
 
 
-def solve_problem(filename):
-    temp_folder = tempfile.mkdtemp()
+def solve_problem(problem):
+    input_file = tempfile.mktemp()
+    save_problem(problem, input_file)
 
-    # os.system(f"../lumosquad-0.1/lumosquad {filename} {temp_folder}/out 1")
-    # instead, use
-    import subprocess
+    output_folder = tempfile.mkdtemp()
 
     subprocess.run(
-        ["../lumosquad-0.1/lumosquad", filename, f"{temp_folder}/out", "1"],
+        ["../lumosquad-0.1/lumosquad", input_file, f"{output_folder}/out", "1"],
         stdout=subprocess.PIPE,
     )
 
-    files = os.listdir(temp_folder)
+    files = os.listdir(output_folder)
     files.sort()
 
     pairs = zip(files[::2], files[1::2])
@@ -120,7 +121,7 @@ def solve_problem(filename):
         with open(bolt_file, "rb") as f:
             for i in range(N):
                 for j in range(N):
-                    result[i, j] = int.from_bytes(f.read(4), "little") > 0
+                    result[i, j] = f.read(1)[0]
         return result
 
     def load_candidate(candidate_file):
@@ -128,17 +129,30 @@ def solve_problem(filename):
         with open(candidate_file, "rb") as f:
             for i in range(N):
                 for j in range(N):
-                    result[i, j] = int.from_bytes(f.read(4), "little")
+                    result[i, j] = struct.unpack("f", f.read(4))[0]
         return result
+
+    map = np.zeros((N, N), dtype=np.uint8)
+    for i in range(N):
+        for j in range(N):
+            if problem[i, j] == WALL:
+                map[i, j] = 3
+            if problem[i, j] == GROUND or problem[i, j] == END:
+                map[i, j] = 4
 
     solutions = []
     for bolt, candidate in pairs:
-        solutions.append(
-            (
-                load_bolt(os.path.join(temp_folder, bolt)),
-                load_candidate(os.path.join(temp_folder, candidate)),
-            )
-        )
+        # empty = 0, bolt = 1, candidate = 2, wall = 3, ground = 4
+        loaded_bolt = load_bolt(os.path.join(output_folder, bolt))
+        loaded_candidate = load_candidate(os.path.join(output_folder, candidate))
+
+        map_copy = map.copy()
+        map_copy[loaded_bolt == 1] = 1
+        map_copy[loaded_bolt == 2] = 2
+        solutions.append((map_copy, loaded_candidate))
+
+    os.remove(input_file)
+    shutil.rmtree(output_folder)
 
     return solutions
 
@@ -146,10 +160,8 @@ def solve_problem(filename):
 def make_dataset(N):
     all_solutions = []
     for _ in tqdm(range(N)):
-        problem = make_solvable_problem(30, 30, 30, 30)
-        temp = tempfile.mktemp()
-        save_problem(problem, temp)
-        solution = solve_problem(temp)
+        problem = make_solvable_problem(30, 0, 4, 4)
+        solution = solve_problem(problem)
         all_solutions.extend(solution)
     return all_solutions
 

@@ -182,7 +182,7 @@ void render_bolt(string filename) {
     int w = potential->xDagRes();
     int h = potential->yDagRes();
 
-    int* source = new int[w * h];
+    unsigned char* source = new unsigned char[w * h];
 
     for (CELL* candidate : potential->_candidates) {
         int x = candidate->center[0] * w;
@@ -220,11 +220,8 @@ void render_bolt(string filename) {
         }
     } while (did_change);
 
-    for (int i = 0; i < w * h; i++)
-        if (source[i] == 2) source[i] = 0;
-
     std::ofstream outfile(filename);
-    outfile.write((char*)source, w * h * sizeof(int));
+    outfile.write((char*)source, w * h * sizeof(unsigned char));
     outfile.close();
 
     delete[] source;
@@ -448,6 +445,7 @@ int glutMain() {
     glutInitWindowPosition(50, 50);
     glutInitWindowSize(width, height);
     glutCreateWindow("Lumos: A Lightning Generator v0.1");
+    glutHideWindow();
 
     glutDisplayFunc(Display);
     glutKeyboardFunc(Keyboard);

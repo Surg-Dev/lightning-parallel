@@ -328,13 +328,13 @@ void QUAD_POISSON::setNoise(CELL* cell)
   int x = cell->center[0] * _maxRes;
   int y = cell->center[1] * _maxRes;
 
-  if (_noise[x + y * _maxRes])
-  {
-    cell->boundary = true;
-    cell->state = ATTRACTOR;
-    cell->potential = 0.5f;
-    cell->candidate = true;
-  }
+  // if (_noise[x + y * _maxRes])
+  // {
+  //   cell->boundary = true;
+  //   cell->state = ATTRACTOR;
+  //   cell->potential = 0.5f;
+  //   cell->candidate = true;
+  // }
 }
 
 //////////////////////////////////////////////////////////////////////
