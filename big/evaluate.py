@@ -3,7 +3,7 @@ from make_data import N, START, END, GROUND, WALL, EMPTY
 from test import NET_EMPTY, NET_BOLT, NET_CANDIDATE, NET_WALL, NET_GROUND, draw_map
 import numpy as np
 import sys
-from train_no_wall import build_unet
+from train import build_unet
 import poisson_disc as pd
 
 
