@@ -169,6 +169,7 @@ void QUAD_DBM_2D::checkForCandidates(CELL* cell)
   }
 }
 
+
 //////////////////////////////////////////////////////////////////////
 // add particle to the aggregate
 //////////////////////////////////////////////////////////////////////
@@ -446,6 +447,8 @@ bool QUAD_DBM_2D::readImage(unsigned char* initial,
 
         terminateFound = true;
       }
+
+      
     }
   
   if (!initialFound) {

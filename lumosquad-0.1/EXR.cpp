@@ -74,6 +74,22 @@ EXR::EXR() {}
 EXR::~EXR() {}
 
 void EXR::writeEXR(const char filename[], float* image, int width, int height) {
+    // do ppm instead
+    FILE* fp = fopen(filename, "wb");
+    fprintf(fp, "P6\n%d %d\n255\n", width, height);
+
+    for (int i = 0; i < width * height; i++) {
+        // std::cout << image[i] << std::endl;
+        unsigned char r = 255 * (image[i] == 0.5);
+        unsigned char g = 255 * (image[i] == 1);
+        unsigned char b = 255 * (image[i] == 0);
+        fwrite(&r, 1, 1, fp);
+        fwrite(&g, 1, 1, fp);
+        fwrite(&b, 1, 1, fp);
+    }
+
+    fclose(fp);
+
     // Imf::Rgba* exrImage = new Imf::Rgba[width * height];
     // for (int x = 0; x < width * height; x++)
     // {

@@ -134,6 +134,8 @@ void renderGlow(string filename, int scale = 1) {
     int w = potential->xDagRes() * scale;
     int h = potential->yDagRes() * scale;
 
+    std::cout << w << std::endl;
+
     // draw the DAG
     float*& source = potential->renderOffscreen(scale);
 
@@ -159,19 +161,99 @@ void renderGlow(string filename, int scale = 1) {
         }
 
     // create the filter
-    apsf.generateKernelFast();
+    // apsf.generateKernelFast();
 
     // convolve with FFT
-    bool success = FFT::convolve(cropped, apsf.kernel(), wCropped, hCropped,
-                                 apsf.res(), apsf.res());
+    // bool success = FFT::convolve(cropped, apsf.kernel(), wCropped, hCropped,
+    //                              apsf.res(), apsf.res());
 
-    if (success) {
-        EXR::writeEXR(filename.c_str(), cropped, wCropped, hCropped);
-        cout << " " << filename << " written." << endl;
-    } else
-        cout << " Final image generation failed." << endl;
+    // if (success) {
+    // EXR::writeEXR(filename.c_str(), cropped, wCropped, hCropped);
+    // cout << " " << filename << " written." << endl;
+    // } else
+    //     cout << " Final image generation failed." << endl;
 
     delete[] cropped;
+}
+
+#include <fstream>
+
+void render_bolt(string filename) {
+    int w = potential->xDagRes();
+    int h = potential->yDagRes();
+
+    int* source = new int[w * h];
+
+    for (CELL* candidate : potential->_candidates) {
+        int x = candidate->center[0] * w;
+        int y = candidate->center[1] * h;
+        int index = x + y * w;
+
+        if (candidate->state == NEGATIVE) {
+            source[index] = 1;
+        } else if (candidate->state == EMPTY) {
+            source[index] = 2;
+        }
+    }
+
+    int num_changed = 0;
+    bool did_change = true;
+    do {
+        did_change = false;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int index = x + y * w;
+                if (source[index] == 0) {
+                    int count = 0;
+                    if (x > 0 && source[index - 1] == 1) count++;
+                    if (x < w - 1 && source[index + 1] == 1) count++;
+                    if (y > 0 && source[index - w] == 1) count++;
+                    if (y < h - 1 && source[index + w] == 1) count++;
+
+                    if (count >= 3) {
+                        source[index] = 1;
+                        num_changed++;
+                        did_change = true;
+                    }
+                }
+            }
+        }
+    } while (did_change);
+
+    for (int i = 0; i < w * h; i++)
+        if (source[i] == 2) source[i] = 0;
+
+    std::ofstream outfile(filename);
+    outfile.write((char*)source, w * h * sizeof(int));
+    outfile.close();
+
+    delete[] source;
+}
+
+void render_candidates(string filename) {
+    int w = potential->xDagRes();
+    int h = potential->yDagRes();
+
+    float* source = new float[w * h];
+
+    for (int i = 0; i < w * h; i++)
+        source[i] = 0.0;
+
+    for (CELL* candidate : potential->_candidates) {
+        int x = candidate->center[0] * w;
+        int y = candidate->center[1] * h;
+        int index = x + y * w;
+
+        if (candidate->state == EMPTY) {
+            source[index] = candidate->potential;
+        }
+    }
+
+    std::ofstream outfile(filename);
+    outfile.write((char*)source, w * h * sizeof(float));
+    outfile.close();
+
+    delete[] source;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -277,6 +359,36 @@ void Keyboard(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
+// #include <chrono>
+// using namespace std::chrono;
+
+// // start time
+// high_resolution_clock::time_point t1;
+// std::vector<double> diff;
+// int i;
+// void renderGlow(string filename, int scale = 1);
+
+//   i += 1;
+
+//   if (i % 1000 == 0) {
+//     renderGlow("glow" + std::to_string(i) + ".png", 1);
+//   }
+
+//   high_resolution_clock::time_point t2 = high_resolution_clock::now();
+//   auto time_span = duration_cast<nanoseconds>(t2 - t1);
+//   t1 = t2;
+
+//   diff.push_back(time_span.count());
+
+//   double average = 0.0;
+//   for (int x = 0; x < diff.size(); x++) {
+//     if (x == 0) continue;
+//     average += diff[x];
+//   }
+//   average /= (double)diff.size();
+//   // cout << "Average time: " << average << endl;
+
+int i = 0;
 ////////////////////////////////////////////////////////////////////////////
 // window Reshape function
 ////////////////////////////////////////////////////////////////////////////
@@ -284,6 +396,13 @@ void Idle() {
     if (!pause)
         for (int x = 0; x < 100; x++) {
             bool success = potential->addParticle();
+            if (rand() % 100 == 0) {
+                // renderGlow(outputFile + std::to_string(i++), scale);
+                char number[256];
+                sprintf(number, "%05d", i++);
+                render_candidates(outputFile + "_" + number + "_candidates");
+                render_bolt(outputFile + "_" + number + "_bolt");
+            }
 
             if (!success) {
                 cout << " No nodes left to add! Is your terminator reachable?"
@@ -294,7 +413,8 @@ void Idle() {
 
             if (potential->hitGround()) {
                 glutPostRedisplay();
-                cout << endl << endl;
+                cout << endl
+                     << endl;
 
                 // write out the DAG file
                 string lightningFile =
@@ -310,6 +430,7 @@ void Idle() {
                 exit(0);
             }
         }
+
     glutPostRedisplay();
 }
 
@@ -349,6 +470,7 @@ int glutMain() {
 // Main
 ////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
+    srand(time(NULL));
     if (argc < 3) {
         cout << endl;
         cout << "   LumosQuad <input file> <output file> <scale (optional)>"
@@ -367,7 +489,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    cout << endl << "Lumos: A lightning generator v0.1" << endl;
+    cout << endl
+         << "Lumos: A lightning generator v0.1" << endl;
     cout << "------------------------------------------------------" << endl;
 
     // store the input params
@@ -395,7 +518,8 @@ int main(int argc, char** argv) {
              << endl;
         return 1;
     }
-    cout << " " << inputFile << " read." << endl << endl;
+    cout << " " << inputFile << " read." << endl
+         << endl;
 
     // loop simulation until it hits a terminator
     cout << " Total particles added: ";

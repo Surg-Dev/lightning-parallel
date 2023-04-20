@@ -9,10 +9,10 @@ from lightning_sparse import *
 def make_initial_boundaries():
     boundaries = {}
 
-    num_ground = random.randint(1, 5)
+    num_ground = random.randint(1, 10)
 
     for _ in range(num_ground):
-        square_width = random.randint(1, 8)
+        square_width = random.randint(1, 20)
         y = random.randint(1, N - square_width - 1)
         x = random.randint(1, N - square_width - 1)
         for i in range(y, y + square_width):

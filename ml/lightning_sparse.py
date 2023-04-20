@@ -4,7 +4,7 @@ import functools
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
 
-N = 64
+N = 256
 
 
 def circle_boundaries():
@@ -42,8 +42,8 @@ def gen_boundaries(lightning_coords, custom_boundaries):
 
 def gen_problem(lightning_coords, custom_boundaries):
 
-    A = np.zeros((N * N, N * N))
-    b = np.zeros((N * N))
+    A = np.zeros((N * N, N * N), dtype=np.float32)
+    b = np.zeros((N * N), dtype=np.float32)
 
     def coord(i, j): return i * N + j
 
@@ -101,7 +101,7 @@ def find_adj(coords):
 
 
 def choose_next_lightning(grid, adj, eta=2):
-    probabilities = np.array([grid[y, x] ** eta for y, x in adj])
+    probabilities = np.array([grid[y, x] ** eta for y, x in adj], dtype=np.float32)
     probabilities /= probabilities.sum()
     new_pixel = adj[np.random.choice(len(adj),
                                      p=probabilities)]
@@ -109,7 +109,7 @@ def choose_next_lightning(grid, adj, eta=2):
 
 
 def display_lightning(lightning_coords, boundaries):
-    display = np.zeros((N, N, 3))
+    display = np.zeros((N, N, 3), dtype=np.float32)
 
     for y, x in lightning_coords:
         display[y, x] = [1, 1, 1]

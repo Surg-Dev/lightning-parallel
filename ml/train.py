@@ -118,7 +118,7 @@ def simulate_one(model, x, y, mask):
     plt.imshow(y[0].cpu().detach().numpy().flatten().reshape(N, N))
     plt.show()
 
-    eta = 2
+    eta = 3
     y_hat = (y_hat * mask) ** eta / mask.sum()
     import numpy as np
 
@@ -141,8 +141,10 @@ def simulate_random():
     boundaries = make_initial_boundaries()
     lightning_coords = make_initial_lightning(boundaries)
 
-    while True:
-        display_lightning(lightning_coords, boundaries)
+    import time
+    go = True
+    while go:
+        # display_lightning(lightning_coords, boundaries)
 
         x = np.zeros((N, N))
         for lightning in lightning_coords:
@@ -152,11 +154,15 @@ def simulate_random():
             x[boundary] = 1
 
         x = torch.from_numpy(x).float().reshape(1, 1, N, N).to(device)
+        import time
+        start = time.time()
         grid = model(x).cpu().detach().numpy().reshape(N, N)
+        end = time.time()
+        print(end - start)
         grid[grid < 0] = 0
-        import matplotlib.pyplot as plt
-        plt.imshow(grid)
-        plt.show()
+        # import matplotlib.pyplot as plt
+        # plt.imshow(grid)
+        # plt.show()
 
         # grid = solve_problem(lightning_coords, boundaries)
         possible_next_lightning = find_adj(lightning_coords)
@@ -166,21 +172,99 @@ def simulate_random():
             mask[possible] = 1
 
         grid2 = grid * mask
-        plt.imshow(grid2)
-        plt.show()
+        # plt.imshow(grid2)
+        # plt.show()
 
-        actual = solve_problem(lightning_coords, boundaries) * mask
-        plt.imshow(actual)
-        plt.show()
+        # actual = solve_problem(lightning_coords, boundaries) * mask
+        # plt.imshow(actual)
+        # plt.show()
 
         next_lightning = choose_next_lightning(
             grid, possible_next_lightning)
-
-        if grid[next_lightning] == 1:
-            break
+            
+        for adj in possible_next_lightning:
+            if x[0, 0, adj[0], adj[1]] == 1:
+                go = False
+                break
 
         lightning_coords.append(next_lightning)
 
+    print(len(lightning_coords))
+
+    display_lightning(lightning_coords, boundaries)
+
+def simulate_ground():
+    from make_data import make_initial_boundaries, make_initial_lightning, display_lightning
+    from lightning_sparse import solve_problem, find_adj, choose_next_lightning
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = build_unet().to(device)
+    model.load_state_dict(torch.load('model.pt'))
+    model.eval()
+
+    # boundaries = make_initial_boundaries()
+    # lightning_coords = make_initial_lightning(boundaries)
+
+
+    boundaries = []
+    for i in range(N):
+        for j in range(5):
+            boundaries.append((N - j - 1, i))
+
+    lightning_coords = [(10, N // 2)]
+
+    import time
+    go = True
+    while go:
+        # display_lightning(lightning_coords, boundaries)
+
+        x = np.zeros((N, N))
+        for lightning in lightning_coords:
+            x[lightning] = -1
+
+        for boundary in boundaries:
+            x[boundary] = 1
+
+        x = torch.from_numpy(x).float().reshape(1, 1, N, N).to(device)
+        import time
+        start = time.time()
+        grid = model(x).cpu().detach().numpy().reshape(N, N)
+        end = time.time()
+        print(end - start)
+        grid[grid < 0] = 0
+        # import matplotlib.pyplot as plt
+        # plt.imshow(grid)
+        # plt.show()
+
+        # grid = solve_problem(lightning_coords, boundaries)
+        possible_next_lightning = find_adj(lightning_coords)
+
+        mask = np.zeros((N, N))
+        for possible in possible_next_lightning:
+            mask[possible] = 1
+
+        grid2 = grid * mask
+        # plt.imshow(grid2)
+        # plt.show()
+
+        # actual = solve_problem(lightning_coords, boundaries) * mask
+        # plt.imshow(actual)
+        # plt.show()
+
+        next_lightning = choose_next_lightning(
+            grid, possible_next_lightning, eta=3)
+            
+        for adj in possible_next_lightning:
+            if x[0, 0, adj[0], adj[1]] == 1:
+                go = False
+                break
+
+        lightning_coords.append(next_lightning)
+
+    print(len(lightning_coords))
+
+    display_lightning(lightning_coords, boundaries)
 
 def simulate():
 
@@ -242,4 +326,4 @@ if __name__ == "__main__":
     # y = model(inputs)
     # print(y.shape)
     # train()
-    simulate_random()
+    simulate_ground()

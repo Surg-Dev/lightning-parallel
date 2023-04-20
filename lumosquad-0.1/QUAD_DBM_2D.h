@@ -157,7 +157,7 @@ class QUAD_DBM_2D {
     //! access the y resolution of the input image
     int inputHeight() { return _dag->inputHeight(); };
 
-   private:
+//    private:
     void allocate();
     void deallocate();
 

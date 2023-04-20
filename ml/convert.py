@@ -50,7 +50,7 @@ if __name__ == '__main__':
     dataset = []
     for folder in tqdm(os.listdir(data_folder)):
         all_files = os.listdir(os.path.join(data_folder, folder))
-        # choose at most 5 random files
+        # choose at most 10 random files
         files = np.random.choice(all_files, min(
             5, len(all_files)), replace=False)
         for file in files:
