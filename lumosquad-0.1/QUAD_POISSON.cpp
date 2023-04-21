@@ -317,6 +317,7 @@ CELL* QUAD_POISSON::insert(float xPos, float yPos)
   return currentCell;
 }
 
+extern bool include_noise;
 //////////////////////////////////////////////////////////////////////
 // check if a cell hits a noise node
 //////////////////////////////////////////////////////////////////////
@@ -328,13 +329,13 @@ void QUAD_POISSON::setNoise(CELL* cell)
   int x = cell->center[0] * _maxRes;
   int y = cell->center[1] * _maxRes;
 
-  // if (_noise[x + y * _maxRes])
-  // {
-  //   cell->boundary = true;
-  //   cell->state = ATTRACTOR;
-  //   cell->potential = 0.5f;
-  //   cell->candidate = true;
-  // }
+  if (include_noise && _noise[x + y * _maxRes])
+  {
+    cell->boundary = true;
+    cell->state = ATTRACTOR;
+    cell->potential = 0.5f;
+    cell->candidate = true;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////

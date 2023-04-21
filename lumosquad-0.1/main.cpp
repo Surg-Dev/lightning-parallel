@@ -113,6 +113,8 @@ int iterations = 10;
 static QUAD_DBM_2D* potential = new QUAD_DBM_2D(256, 256, iterations);
 APSF apsf(512);
 
+bool include_noise = false;
+
 // input image info
 int inputWidth = -1;
 int inputHeight = -1;
@@ -126,6 +128,35 @@ float scale = 5;
 
 // pause the simulation?
 bool pause = false;
+#include <fstream>
+
+int do_convolve(std::string in, std::string out) {
+    constexpr int N = 256;
+    float buf[N * N];
+    std::ifstream infile(in);
+    infile.read(reinterpret_cast<char*>(buf), sizeof(buf));
+    infile.close();
+
+    apsf.generateKernelFast();
+    bool success = FFT::convolve(buf, apsf.kernel(), N, N,
+                                 apsf.res(), apsf.res());
+
+    if (!success) {
+        std::cerr << "Error: convolution failed." << std::endl;
+        return 1;
+    }
+
+    std::ofstream outfile(out);
+    if (!outfile) {
+        std::cerr << "Error: " << out << " is not a valid file." << std::endl;
+        return 1;
+    }
+
+    outfile.write(reinterpret_cast<char*>(buf), sizeof(buf));
+    outfile.close();
+
+    return 0;
+}
 
 ////////////////////////////////////////////////////////////////////////////
 // render the glow
@@ -161,11 +192,25 @@ void renderGlow(string filename, int scale = 1) {
         }
 
     // create the filter
-    // apsf.generateKernelFast();
+    apsf.generateKernelFast();
 
     // convolve with FFT
-    // bool success = FFT::convolve(cropped, apsf.kernel(), wCropped, hCropped,
-    //                              apsf.res(), apsf.res());
+    bool success = FFT::convolve(cropped, apsf.kernel(), wCropped, hCropped,
+                                 apsf.res(), apsf.res());
+
+    // save cropped to file
+    std::ofstream croppedFile2(filename + "_result.bin");
+    croppedFile2.write((char*)cropped, sizeof(float) * wCropped * hCropped);
+    croppedFile2.close();
+
+    // // save aspf.kernel to file
+    // auto kernel = apsf.kernel();
+    // std::ofstream kernelFile("kernel.bin");
+    // kernelFile.write((char*)kernel, sizeof(float) * apsf.res() * apsf.res());
+    // std::cout << "yup" << std::endl;
+    // std::cout << apsf.res() << std::endl;
+
+    // do_convolve("../big/out.bin", "foo.bin");
 
     // if (success) {
     // EXR::writeEXR(filename.c_str(), cropped, wCropped, hCropped);
@@ -175,8 +220,6 @@ void renderGlow(string filename, int scale = 1) {
 
     delete[] cropped;
 }
-
-#include <fstream>
 
 void render_bolt(string filename) {
     int w = potential->xDagRes();
@@ -464,14 +507,15 @@ int glutMain() {
     return 0;
 }
 
+#if 1
 ////////////////////////////////////////////////////////////////////////////
 // Main
 ////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv) {
     srand(time(NULL));
-    if (argc < 3) {
+    if (argc < 5) {
         cout << endl;
-        cout << "   LumosQuad <input file> <output file> <scale (optional)>"
+        cout << "   LumosQuad <input file> <output file> <scale> <1 or 0 to enable noise>"
              << endl;
         cout << "   ========================================================="
              << endl;
@@ -485,6 +529,10 @@ int main(int argc, char** argv) {
         cout << "   Press 'q' to terminate the simulation prematurely." << endl;
         cout << "   Send questions and comments to kim@cs.unc.edu" << endl;
         return 1;
+    }
+
+    if (argv[4][0] == '1') {
+        include_noise = true;
     }
 
     cout << endl
@@ -526,3 +574,14 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+#else
+#include <fstream>
+int main(int argc, char** argv) {
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " <input file> <output file>" << std::endl;
+        return 1;
+    }
+
+    return do_convolve(argv[1], argv[2]);
+}
+#endif

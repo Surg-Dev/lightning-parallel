@@ -1,10 +1,14 @@
-import torch
-from make_data import N, START, END, GROUND, WALL, EMPTY
-from test import NET_EMPTY, NET_BOLT, NET_CANDIDATE, NET_WALL, NET_GROUND, draw_map
-import numpy as np
 import sys
-from train import build_unet
+from test import NET_BOLT, NET_CANDIDATE, NET_EMPTY, NET_GROUND, NET_WALL, draw_map
+
+import matplotlib.pyplot as plt
+import numpy as np
 import poisson_disc as pd
+import torch
+
+from make_data import EMPTY, END, GROUND, START, WALL, N
+from train import build_unet
+import time
 
 
 def load_ppm(filename):
@@ -57,6 +61,103 @@ def update_candidates(candidates, map, y, x):
         candidates.add((y + 1, x + 1))
 
 
+class Node:
+    def __init__(self, point, parent) -> None:
+        self.point = point
+        self.parent = parent
+        self.children = []
+        self.is_lead = False
+        self.depth = 0
+
+
+class Dag:
+    def __init__(self, map, start) -> None:
+        self.map = map
+        self.start = start
+        self.nodes = {start: Node(start, None)}
+
+    def add_point(self, point):
+        neighbors = self._get_neighbors(point[0], point[1])
+        parent = neighbors[0]
+
+        self.nodes[parent].children.append(point)
+        self.nodes[point] = Node(point, parent)
+
+    def _get_neighbors(self, y, x):
+        neighbors = []
+        if x > 0 and self.map[y, x - 1] == NET_BOLT:
+            neighbors.append((y, x - 1))
+        if x < N - 1 and self.map[y, x + 1] == NET_BOLT:
+            neighbors.append((y, x + 1))
+        if y > 0 and self.map[y - 1, x] == NET_BOLT:
+            neighbors.append((y - 1, x))
+        if y < N - 1 and self.map[y + 1, x] == NET_BOLT:
+            neighbors.append((y + 1, x))
+        if x > 0 and y > 0 and self.map[y - 1, x - 1] == NET_BOLT:
+            neighbors.append((y - 1, x - 1))
+        if x < N - 1 and y > 0 and self.map[y - 1, x + 1] == NET_BOLT:
+            neighbors.append((y - 1, x + 1))
+        if x > 0 and y < N - 1 and self.map[y + 1, x - 1] == NET_BOLT:
+            neighbors.append((y + 1, x - 1))
+        if x < N - 1 and y < N - 1 and self.map[y + 1, x + 1] == NET_BOLT:
+            neighbors.append((y + 1, x + 1))
+        return neighbors
+
+    def _build_branch(self, node, depth=1):
+        node.depth = depth
+
+        for child in node.children:
+            child = self.nodes[child]
+            if not child.is_lead:
+                self._build_branch(child, depth + 1)
+
+    def _find_deepest(self, node):
+        if not node.children:
+            return node
+
+        max_child = None
+        max_depth = 0
+        for child in node.children:
+            child = self.nodes[child]
+            if child.depth > max_depth:
+                max_child = child
+                max_depth = child.depth
+
+        return self._find_deepest(max_child)
+
+    def _build_intensity(self, result, node):
+        for end_node in node.children:
+            end_node = self.nodes[end_node]
+            if node.is_lead:
+                result[end_node.point] = 0.75
+            else:
+                max_depth = self._find_deepest(end_node).depth
+                stdDev = -(max_depth * max_depth) / (np.log(0.35) * 2.0)
+
+                eTerm = -end_node.depth * end_node.depth
+                eTerm /= 2.0 * stdDev
+                eTerm = np.exp(eTerm) * 0.5
+                result[end_node.point] = eTerm
+
+            self._build_intensity(result, end_node)
+
+    def draw(self, end):
+        node = self.nodes[end]
+        while node:
+            node.is_lead = True
+
+            for child in node.children:
+                child = self.nodes[child]
+                if not child.is_lead:
+                    self._build_branch(child)
+
+            node = self.nodes.get(node.parent, None)
+
+        result = np.zeros((N, N), dtype=np.float32)
+        self._build_intensity(result, self.nodes[self.start])
+        return result
+
+
 def simulate(model, map, start, end, device, eta=1):
     candidates = set()
     update_candidates(candidates, map, start[0], start[1])
@@ -67,7 +168,8 @@ def simulate(model, map, start, end, device, eta=1):
         if map[y, x] == NET_EMPTY:
             map[y, x] = NET_GROUND
 
-    i = 0
+    dag = Dag(map, start)
+
     while candidates:
         x = torch.zeros((1, 1, N, N), device=device)
         x[0, 0, map == NET_BOLT] = -1
@@ -90,22 +192,22 @@ def simulate(model, map, start, end, device, eta=1):
 
         # update map
         map[chosen[0], chosen[1]] = NET_BOLT
+        dag.add_point(chosen)
         candidates.remove(chosen)
         update_candidates(candidates, map, chosen[0], chosen[1])
 
-        if i % 500 == 0:
-            import matplotlib.pyplot as plt
+        last_added = chosen
 
-            plt.imshow(draw_map(map))
-            plt.show()
+        if end in candidates:
+            break
 
-        if chosen == end:
-            print("Found solution")
-            return
+    intensities = dag.draw(last_added)
+    return map, intensities
 
-        i += 1
 
-    print("No solution found")
+def save_intensities(intensities, file):
+    with open(file, "wb") as f:
+        f.write(intensities.tobytes())
 
 
 if __name__ == "__main__":
@@ -122,5 +224,11 @@ if __name__ == "__main__":
     model.to(device)
 
     map, start, end = load_ppm(sys.argv[2])
+    map, intensities = simulate(model, map, start, end, device)
+    save_intensities(intensities, "out.bin")
 
-    simulate(model, map, start, end, device)
+    # with open("foo.bin", "rb") as f:
+    #     data = np.fromfile(f, dtype=np.float32).reshape((N, N))
+    #     data /= data.max()
+    #     plt.imshow(data, cmap="gray", vmin=0, vmax=1)
+    #     plt.show()
