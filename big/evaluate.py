@@ -1,14 +1,13 @@
 import sys
 from test import NET_BOLT, NET_CANDIDATE, NET_EMPTY, NET_GROUND, NET_WALL, draw_map
 
-import matplotlib.pyplot as plt
 import numpy as np
 import poisson_disc as pd
 import torch
 
 from make_data import EMPTY, END, GROUND, START, WALL, N
 from train import build_unet
-import time
+import random
 
 
 def load_ppm(filename):
@@ -40,27 +39,6 @@ def load_ppm(filename):
     return map, start, end
 
 
-def update_candidates(candidates, map, y, x):
-    good = lambda type: type == NET_EMPTY or type == NET_CANDIDATE or type == NET_GROUND
-
-    if x > 0 and good(map[y, x - 1]):
-        candidates.add((y, x - 1))
-    if x < N - 1 and good(map[y, x + 1]):
-        candidates.add((y, x + 1))
-    if y > 0 and good(map[y - 1, x]):
-        candidates.add((y - 1, x))
-    if y < N - 1 and good(map[y + 1, x]):
-        candidates.add((y + 1, x))
-    if x > 0 and y > 0 and good(map[y - 1, x - 1]):
-        candidates.add((y - 1, x - 1))
-    if x < N - 1 and y > 0 and good(map[y - 1, x + 1]):
-        candidates.add((y - 1, x + 1))
-    if x > 0 and y < N - 1 and good(map[y + 1, x - 1]):
-        candidates.add((y + 1, x - 1))
-    if x < N - 1 and y < N - 1 and good(map[y + 1, x + 1]):
-        candidates.add((y + 1, x + 1))
-
-
 class Node:
     def __init__(self, point, parent) -> None:
         self.point = point
@@ -70,38 +48,39 @@ class Node:
         self.depth = 0
 
 
+def get_neighbors(point):
+    y, x = point
+    neighbors = []
+    if x > 0:
+        neighbors.append((y, x - 1))
+    if x < N - 1:
+        neighbors.append((y, x + 1))
+    if y > 0:
+        neighbors.append((y - 1, x))
+    if y < N - 1:
+        neighbors.append((y + 1, x))
+    if x > 0 and y > 0:
+        neighbors.append((y - 1, x - 1))
+    if x < N - 1 and y > 0:
+        neighbors.append((y - 1, x + 1))
+    if x > 0 and y < N - 1:
+        neighbors.append((y + 1, x - 1))
+    if x < N - 1 and y < N - 1:
+        neighbors.append((y + 1, x + 1))
+    return neighbors
+
+
 class Dag:
-    def __init__(self, map, start) -> None:
-        self.map = map
+    def __init__(self, start) -> None:
         self.start = start
         self.nodes = {start: Node(start, None)}
 
-    def add_point(self, point):
-        neighbors = self._get_neighbors(point[0], point[1])
-        parent = neighbors[0]
+    def add_point(self, map, point):
+        neighbors = [n for n in get_neighbors(point) if map[n] == NET_BOLT]
+        parent = random.choice(neighbors)
 
         self.nodes[parent].children.append(point)
         self.nodes[point] = Node(point, parent)
-
-    def _get_neighbors(self, y, x):
-        neighbors = []
-        if x > 0 and self.map[y, x - 1] == NET_BOLT:
-            neighbors.append((y, x - 1))
-        if x < N - 1 and self.map[y, x + 1] == NET_BOLT:
-            neighbors.append((y, x + 1))
-        if y > 0 and self.map[y - 1, x] == NET_BOLT:
-            neighbors.append((y - 1, x))
-        if y < N - 1 and self.map[y + 1, x] == NET_BOLT:
-            neighbors.append((y + 1, x))
-        if x > 0 and y > 0 and self.map[y - 1, x - 1] == NET_BOLT:
-            neighbors.append((y - 1, x - 1))
-        if x < N - 1 and y > 0 and self.map[y - 1, x + 1] == NET_BOLT:
-            neighbors.append((y - 1, x + 1))
-        if x > 0 and y < N - 1 and self.map[y + 1, x - 1] == NET_BOLT:
-            neighbors.append((y + 1, x - 1))
-        if x < N - 1 and y < N - 1 and self.map[y + 1, x + 1] == NET_BOLT:
-            neighbors.append((y + 1, x + 1))
-        return neighbors
 
     def _build_branch(self, node, depth=1):
         node.depth = depth
@@ -158,50 +137,79 @@ class Dag:
         return result
 
 
-def simulate(model, map, start, end, device, eta=1):
-    candidates = set()
-    update_candidates(candidates, map, start[0], start[1])
+class Bolt:
+    def __init__(self, map, start, end) -> None:
+        self.start = start
+        self.end = end
+        self.dag = Dag(start)
+        self.candidates = set()
+        self.complete = False
 
-    points = pd.Bridson_sampling(radius=0.1)
+        map[start] = NET_BOLT
+        self._update_candidates(map, start)
+
+    def _add_pixel(self, map, pixel):
+        map[pixel] = NET_BOLT
+        self._update_candidates(map, pixel)
+        self.dag.add_point(map, pixel)
+
+    def _update_candidates(self, map, pixel):
+        good = (
+            lambda type: type == NET_EMPTY
+            or type == NET_CANDIDATE
+            or type == NET_GROUND
+        )
+
+        self.candidates.update([c for c in get_neighbors(pixel) if good(map[c])])
+
+    def add_new(self, map, poisson, eta):
+        poisson **= eta
+        ordered_candidates = list(self.candidates)
+        probs = np.array([poisson[c] for c in ordered_candidates])
+        probs[probs < 0] = 0
+        probs[np.isnan(probs)] = 0
+        probs /= probs.sum()
+        chosen_index = np.random.choice(len(ordered_candidates), p=probs)
+        chosen_candidate = ordered_candidates[chosen_index]
+        self.candidates.remove(chosen_candidate)
+        self._add_pixel(map, chosen_candidate)
+
+        if chosen_candidate == self.end:
+            self.complete = True
+
+    def get_intensities(self):
+        if not self.is_complete():
+            raise Exception("Bolt is not complete")
+        return self.dag.draw(self.end)
+
+    def is_complete(self):
+        return self.complete
+
+
+def map_to_x(map, device):
+    x = torch.zeros((1, 1, N, N), device=device)
+    x[0, 0, map == NET_BOLT] = -1
+    x[0, 0, map == NET_GROUND] = 1
+    return x
+
+
+def add_noise(map, radius=0.1):
+    points = pd.Bridson_sampling(radius=radius)
     for point in points:
         y, x = int(point[0] * N), int(point[1] * N)
         if map[y, x] == NET_EMPTY:
             map[y, x] = NET_GROUND
 
-    dag = Dag(map, start)
 
-    while candidates:
-        x = torch.zeros((1, 1, N, N), device=device)
-        x[0, 0, map == NET_BOLT] = -1
-        x[0, 0, map == NET_GROUND] = 1
-        y = model(x) ** eta
-        y = y[0, 0].detach().cpu().numpy()
+def simulate(model, map, start, end, device, eta=1):
+    add_noise(map)
+    bolt = Bolt(map, start, end)
+    while not bolt.is_complete():
+        x = map_to_x(map, device)
+        poisson = model(x)[0, 0].detach().cpu().numpy()
+        bolt.add_new(map, poisson, eta)
 
-        # choose out of candidates with probability given by y
-        candidate_list = list(candidates)
-        probs = []
-        for candidate in candidate_list:
-            probs.append(y[candidate[0], candidate[1]])
-
-        probs = np.array(probs)
-        probs[probs < 0] = 0
-        probs[np.isnan(probs)] = 0
-        probs /= probs.sum()
-        chosen = np.random.choice(len(candidate_list), p=probs)
-        chosen = candidate_list[chosen]
-
-        # update map
-        map[chosen[0], chosen[1]] = NET_BOLT
-        dag.add_point(chosen)
-        candidates.remove(chosen)
-        update_candidates(candidates, map, chosen[0], chosen[1])
-
-        last_added = chosen
-
-        if end in candidates:
-            break
-
-    intensities = dag.draw(last_added)
+    intensities = bolt.get_intensities()
     return map, intensities
 
 
@@ -212,7 +220,6 @@ def save_intensities(intensities, file):
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # device = "cpu"
 
     if len(sys.argv) != 3:
         print("Usage: python3 evaluator.py <model.pt> <ppm>")
@@ -223,12 +230,14 @@ if __name__ == "__main__":
     model.eval()
     model.to(device)
 
-    # map, start, end = load_ppm(sys.argv[2])
-    # map, intensities = simulate(model, map, start, end, device)
-    # save_intensities(intensities, "out.bin")
+    map, start, end = load_ppm(sys.argv[2])
+    map, intensities = simulate(model, map, start, end, device)
+    save_intensities(intensities, "out.bin")
 
-    with open("foo.bin", "rb") as f:
-        data = np.fromfile(f, dtype=np.float32).reshape((N, N))
-        data /= data.max()
-        plt.imshow(data, cmap="gray", vmin=0, vmax=1)
-        plt.show()
+    # import matplotlib.pyplot as plt
+
+    # with open("foo.bin", "rb") as f:
+    #     data = np.fromfile(f, dtype=np.float32).reshape((N, N))
+    #     data /= data.max()
+    #     plt.imshow(data, cmap="gray", vmin=0, vmax=1)
+    #     plt.show()
