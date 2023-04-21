@@ -11,9 +11,9 @@ model.eval()
 model.to(device)
 
 nums = []
-for _ in range(1000):
-    start = time.time()
+for _ in range(10000):
     rand = torch.rand((1, 1, N, N), device=device)
+    start = time.time()
     model(rand)
     end = time.time()
     nums.append(end - start)

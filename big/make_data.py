@@ -107,7 +107,7 @@ def solve_problem(problem):
     output_folder = tempfile.mkdtemp()
 
     subprocess.run(
-        ["../lumosquad-0.1/lumosquad", input_file, f"{output_folder}/out", "1"],
+        ["../lumosquad-0.1/lumosquad", input_file, f"{output_folder}/out", "1", "0"],
         stdout=subprocess.PIPE,
     )
 

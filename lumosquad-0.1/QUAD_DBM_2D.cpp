@@ -169,7 +169,8 @@ void QUAD_DBM_2D::checkForCandidates(CELL* cell)
   }
 }
 
-
+#include <chrono>
+std::vector<float> times;
 //////////////////////////////////////////////////////////////////////
 // add particle to the aggregate
 //////////////////////////////////////////////////////////////////////
@@ -181,8 +182,24 @@ bool QUAD_DBM_2D::addParticle()
  
   // compute the potential
   int iterations = 0;
-  if (!skipSolve)
+  if (!skipSolve) {
+    auto start_time = std::chrono::high_resolution_clock::now();
     iterations = _quadPoisson->solve();
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto micro = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+    float millis = micro / 1000.0f;
+    times.push_back(millis);
+
+    float sum = 0.0f;
+    for (int x = 0; x < times.size(); x++)
+      sum += times[x];
+    float average = sum / times.size();
+
+    if (times.size() > 100) {
+      std::cout << "Average time: " << average << " ms" << std::endl;
+      times.erase(times.begin());
+    }
+  }
   skipSolve++;
   if (skipSolve == _skips) skipSolve = 0;
 

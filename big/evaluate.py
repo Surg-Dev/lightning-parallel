@@ -132,7 +132,7 @@ class Dag:
                 result[end_node.point] = 0.75
             else:
                 max_depth = self._find_deepest(end_node).depth
-                stdDev = -(max_depth * max_depth) / (np.log(0.35) * 2.0)
+                stdDev = -(max_depth * max_depth) / (np.log(0.3) * 2.0)
 
                 eTerm = -end_node.depth * end_node.depth
                 eTerm /= 2.0 * stdDev
@@ -223,12 +223,12 @@ if __name__ == "__main__":
     model.eval()
     model.to(device)
 
-    map, start, end = load_ppm(sys.argv[2])
-    map, intensities = simulate(model, map, start, end, device)
-    save_intensities(intensities, "out.bin")
+    # map, start, end = load_ppm(sys.argv[2])
+    # map, intensities = simulate(model, map, start, end, device)
+    # save_intensities(intensities, "out.bin")
 
-    # with open("foo.bin", "rb") as f:
-    #     data = np.fromfile(f, dtype=np.float32).reshape((N, N))
-    #     data /= data.max()
-    #     plt.imshow(data, cmap="gray", vmin=0, vmax=1)
-    #     plt.show()
+    with open("foo.bin", "rb") as f:
+        data = np.fromfile(f, dtype=np.float32).reshape((N, N))
+        data /= data.max()
+        plt.imshow(data, cmap="gray", vmin=0, vmax=1)
+        plt.show()
