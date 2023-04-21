@@ -71,20 +71,20 @@ class build_unet(nn.Module):
         super().__init__()
 
         """ Encoder """
-        self.e1 = encoder_block(1, 16)
-        self.e2 = encoder_block(16, 32)
-        self.e3 = encoder_block(32, 64)
+        self.e1 = encoder_block(1, 8)
+        self.e2 = encoder_block(8, 16)
+        self.e3 = encoder_block(16, 32)
 
         """ Bottleneck """
-        self.b = conv_block(64, 128)
+        self.b = conv_block(32, 64)
 
         """ Decoder """
-        self.d1 = decoder_block(128, 64)
-        self.d2 = decoder_block(64, 32)
-        self.d3 = decoder_block(32, 16)
+        self.d1 = decoder_block(64, 32)
+        self.d2 = decoder_block(32, 16)
+        self.d3 = decoder_block(16, 8)
 
         """ Classifier """
-        self.outputs = nn.Conv2d(16, 1, kernel_size=1, padding=0)
+        self.outputs = nn.Conv2d(8, 1, kernel_size=1, padding=0)
 
     def forward(self, inputs):
         """Encoder"""
@@ -132,6 +132,8 @@ def train(model, dataset, device):
         optimizer.zero_grad()
 
         losses.append(loss.item())
+
+    print("Average loss: " + str(np.mean(losses)))
 
 
 if __name__ == "__main__":
