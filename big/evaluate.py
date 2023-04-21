@@ -1,13 +1,17 @@
+import os
+import random
+import subprocess
 import sys
+import tempfile
 from test import NET_BOLT, NET_CANDIDATE, NET_EMPTY, NET_GROUND, NET_WALL, draw_map
 
+import matplotlib.pyplot as plt
 import numpy as np
 import poisson_disc as pd
 import torch
 
 from make_data import EMPTY, END, GROUND, START, WALL, N
 from train import build_unet
-import random
 
 
 def load_ppm(filename):
@@ -213,9 +217,26 @@ def simulate(model, map, start, end, device, eta=1):
     return map, intensities
 
 
-def save_intensities(intensities, file):
-    with open(file, "wb") as f:
+def convolve(intensities):
+    temp_file = tempfile.mktemp()
+    with open(temp_file, "wb") as f:
         f.write(intensities.tobytes())
+
+    subprocess.run(["./convolve", temp_file, temp_file])
+
+    with open(temp_file, "rb") as f:
+        data = np.fromfile(f, dtype=np.float32).reshape((N, N))
+
+    os.remove(temp_file)
+    return data
+
+
+def load_model(filename, device):
+    model = build_unet()
+    model.load_state_dict(torch.load(filename))
+    model.eval()
+    model.to(device)
+    return model
 
 
 if __name__ == "__main__":
@@ -225,19 +246,10 @@ if __name__ == "__main__":
         print("Usage: python3 evaluator.py <model.pt> <ppm>")
         sys.exit(1)
 
-    model = build_unet()
-    model.load_state_dict(torch.load(sys.argv[1]))
-    model.eval()
-    model.to(device)
-
+    model = load_model(sys.argv[1], device)
     map, start, end = load_ppm(sys.argv[2])
     map, intensities = simulate(model, map, start, end, device)
-    save_intensities(intensities, "out.bin")
+    intensities = convolve(intensities)
 
-    # import matplotlib.pyplot as plt
-
-    # with open("foo.bin", "rb") as f:
-    #     data = np.fromfile(f, dtype=np.float32).reshape((N, N))
-    #     data /= data.max()
-    #     plt.imshow(data, cmap="gray", vmin=0, vmax=1)
-    #     plt.show()
+    plt.imshow(intensities, cmap="gray")
+    plt.show()
