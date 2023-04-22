@@ -110,7 +110,7 @@ using namespace std;
 // globals
 ////////////////////////////////////////////////////////////////////////////
 int iterations = 10;
-static QUAD_DBM_2D* potential = new QUAD_DBM_2D(256, 256, iterations);
+static QUAD_DBM_2D* potential = new QUAD_DBM_2D(512, 512, iterations);
 APSF apsf(512);
 
 bool include_noise = false;
@@ -302,8 +302,8 @@ void render_candidates(string filename) {
 bool loadImages(string inputFile) {
     // load the files
     unsigned char* input = NULL;
+    std::cout << inputWidth << std::endl;
     LoadPPM(inputFile.c_str(), input, inputWidth, inputHeight);
-
     unsigned char* start = new unsigned char[inputWidth * inputHeight];
     unsigned char* repulsor = new unsigned char[inputWidth * inputHeight];
     unsigned char* attractor = new unsigned char[inputWidth * inputHeight];

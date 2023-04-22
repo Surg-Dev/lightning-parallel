@@ -11,7 +11,8 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-N = 256
+BIG_N = 512
+SMALL_N = 256
 
 EMPTY = 0x000000
 WALL = 0x00FF00
@@ -31,14 +32,14 @@ def has_problematic_overlap(problem, rect, type):
 
 def random_rect(problem, w, h, type):
     for _ in range(10000):
-        x, y = random.randint(0, N - w), random.randint(0, N - h)
+        x, y = random.randint(0, BIG_N - w), random.randint(0, BIG_N - h)
         if not has_problematic_overlap(problem, (x, y, w, h), type):
             problem[y : y + h, x : x + w] = type
             break
 
 
 def make_problem(max_ground, max_wall, max_ground_len, max_wall_len):
-    problem = np.full((N, N), EMPTY, dtype=np.uint32)
+    problem = np.full((BIG_N, BIG_N), EMPTY, dtype=np.uint32)
     random_rect(problem, 1, 1, START)
     random_rect(problem, 1, 1, END)
 
@@ -63,17 +64,17 @@ def is_solvable(problem):
     import networkx as nx
 
     G = nx.Graph()
-    for i in range(N):
-        for j in range(N):
+    for i in range(BIG_N):
+        for j in range(BIG_N):
             if problem[i, j] != WALL:
                 G.add_node((i, j))
 
-    for i in range(N):
-        for j in range(N):
+    for i in range(BIG_N):
+        for j in range(BIG_N):
             if problem[i, j] != WALL:
-                if i + 1 < N and problem[i + 1, j] != WALL:
+                if i + 1 < BIG_N and problem[i + 1, j] != WALL:
                     G.add_edge((i, j), (i + 1, j))
-                if j + 1 < N and problem[i, j + 1] != WALL:
+                if j + 1 < BIG_N and problem[i, j + 1] != WALL:
                     G.add_edge((i, j), (i, j + 1))
 
     start_y, start_x = np.where(problem == START)
@@ -93,7 +94,7 @@ def save_problem(problem, filename):
     # save as ppm
     with open(filename, "wb") as f:
         f.write(b"P6\n")
-        f.write(f"{N} {N}\n".encode("ascii"))
+        f.write(f"{BIG_N} {BIG_N}\n".encode("ascii"))
         f.write(b"255\n")
         for row in problem:
             for pixel in row:
@@ -117,24 +118,32 @@ def solve_problem(problem):
     pairs = zip(files[::2], files[1::2])
 
     def load_bolt(bolt_file):
-        result = np.zeros((N, N), dtype=np.uint8)
+        result = np.zeros((BIG_N, BIG_N), dtype=np.uint8)
         with open(bolt_file, "rb") as f:
-            for i in range(N):
-                for j in range(N):
+            for i in range(BIG_N):
+                for j in range(BIG_N):
                     result[i, j] = f.read(1)[0]
         return result
 
     def load_candidate(candidate_file):
-        result = np.zeros((N, N), dtype=np.float32)
+        result = np.zeros((BIG_N, BIG_N), dtype=np.float32)
         with open(candidate_file, "rb") as f:
-            for i in range(N):
-                for j in range(N):
+            for i in range(BIG_N):
+                for j in range(BIG_N):
                     result[i, j] = struct.unpack("f", f.read(4))[0]
         return result
 
-    map = np.zeros((N, N), dtype=np.uint8)
-    for i in range(N):
-        for j in range(N):
+    def get_crop_coords(map):
+        while True:
+            start_y = random.randint(0, BIG_N - SMALL_N)
+            start_x = random.randint(0, BIG_N - SMALL_N)
+            view = map[start_y : start_y + SMALL_N, start_x : start_x + SMALL_N]
+            if np.any(view == 2):
+                return start_y, start_x
+
+    map = np.zeros((BIG_N, BIG_N), dtype=np.uint8)
+    for i in range(BIG_N):
+        for j in range(BIG_N):
             if problem[i, j] == WALL:
                 map[i, j] = 3
             if problem[i, j] == GROUND or problem[i, j] == END:
@@ -149,6 +158,14 @@ def solve_problem(problem):
         map_copy = map.copy()
         map_copy[loaded_bolt == 1] = 1
         map_copy[loaded_bolt == 2] = 2
+
+        # crop em
+        start_y, start_x = get_crop_coords(map_copy)
+        map_copy = map_copy[start_y : start_y + SMALL_N, start_x : start_x + SMALL_N]
+        loaded_candidate = loaded_candidate[
+            start_y : start_y + SMALL_N, start_x : start_x + SMALL_N
+        ]
+
         solutions.append((map_copy, loaded_candidate))
 
     os.remove(input_file)
@@ -160,7 +177,7 @@ def solve_problem(problem):
 def make_dataset(N):
     all_solutions = []
     for _ in tqdm(range(N)):
-        problem = make_solvable_problem(30, 0, 4, 4)
+        problem = make_solvable_problem(15 * 4 // 2, 15 * 4, 4, 4)
         solution = solve_problem(problem)
         all_solutions.extend(solution)
     return all_solutions

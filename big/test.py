@@ -10,6 +10,7 @@ NET_BOLT = 1
 NET_CANDIDATE = 2
 NET_WALL = 3
 NET_GROUND = 4
+NET_ATTRACTOR = 5
 
 
 def draw_map(map):
@@ -18,6 +19,7 @@ def draw_map(map):
     rgb[map == NET_CANDIDATE] = [1, 0, 0]
     rgb[map == NET_WALL] = [0, 1, 0]
     rgb[map == NET_GROUND] = [0, 0, 1]
+    rgb[map == NET_ATTRACTOR] = [1, 1, 0]
 
     return rgb
 

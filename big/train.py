@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from make_data import N
+from make_data import SMALL_N
 
 # based off of https://medium.com/analytics-vidhya/unet-implementation-in-pytorch-idiot-developer-da40d955f201
 
@@ -108,7 +108,7 @@ class build_unet(nn.Module):
 
 def custom_loss(y, y_hat, map):
     mask = map == NET_CANDIDATE
-    return nn.MSELoss()(y_hat * mask, y * mask) * (N * N) / mask.sum()
+    return nn.MSELoss()(y_hat * mask, y * mask) * (SMALL_N * SMALL_N) / mask.sum()
 
 
 def train(model, dataset, device):
@@ -120,11 +120,13 @@ def train(model, dataset, device):
 
     losses = []
     for map, y in tqdm(trainloader):
-        map = map.to(device).reshape(-1, 1, N, N)
-        y = y.to(device).reshape(-1, 1, N, N)
+        map = map.to(device).reshape(-1, 1, SMALL_N, SMALL_N)
+        y = y.to(device).reshape(-1, 1, SMALL_N, SMALL_N)
         x = torch.zeros_like(y, device=device)
         x[map == NET_BOLT] = -1
         x[map == NET_GROUND] = 1
+        # Cursed hack to use wall as an attractor during training only. we're on a time crunch :(
+        x[map == NET_WALL] = 0.5
         y_hat = model(x)
         loss = custom_loss(y, y_hat, map)
         loss.backward()
@@ -154,7 +156,10 @@ if __name__ == "__main__":
 
     model.to(device)
 
-    for dataset in os.listdir(dataset_folder):
+    all_files = os.listdir(dataset_folder)
+    half = len(all_files) // 2
+
+    for dataset in all_files[half:]:
         dataset = os.path.join(dataset_folder, dataset)
         dataset = torch.load(dataset)
         train(model, dataset, device)

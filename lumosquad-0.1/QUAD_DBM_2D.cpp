@@ -420,6 +420,16 @@ bool QUAD_DBM_2D::readImage(unsigned char* initial,
         positive->candidate = true;
       }
       
+#if 1
+      if (repulsors[index]) {
+        // insert something
+        CELL* cell = _quadPoisson->insert(x, y);
+        cell->boundary = true;
+        cell->state = ATTRACTOR;
+        cell->potential = 0.5f;
+        cell->candidate = true;
+      }
+#else
       // insert repulsors
       if (repulsors[index])
         {
@@ -451,6 +461,7 @@ bool QUAD_DBM_2D::readImage(unsigned char* initial,
             negative->candidate = true;
           }
         }
+#endif
 
       // insert terminators
       if (terminators[index])
