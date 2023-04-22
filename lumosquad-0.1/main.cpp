@@ -130,13 +130,13 @@ float scale = 5;
 bool pause = false;
 #include <fstream>
 
-int do_convolve(std::string in, std::string out) {
-    constexpr int N = 256;
-    float buf[N * N];
+int do_convolve(std::string in, std::string out, int N) {
+    float* buf = new float[N * N];
     std::ifstream infile(in);
-    infile.read(reinterpret_cast<char*>(buf), sizeof(buf));
+    infile.read(reinterpret_cast<char*>(buf), N * N * sizeof(float));
     infile.close();
 
+    APSF apsf(N * 2);
     apsf.generateKernelFast();
     bool success = FFT::convolve(buf, apsf.kernel(), N, N,
                                  apsf.res(), apsf.res());
@@ -152,8 +152,9 @@ int do_convolve(std::string in, std::string out) {
         return 1;
     }
 
-    outfile.write(reinterpret_cast<char*>(buf), sizeof(buf));
+    outfile.write(reinterpret_cast<char*>(buf), N * N * sizeof(float));
     outfile.close();
+    delete[] buf;
 
     return 0;
 }
@@ -577,11 +578,11 @@ int main(int argc, char** argv) {
 #else
 #include <fstream>
 int main(int argc, char** argv) {
-    if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " <input file> <output file>" << std::endl;
+    if (argc != 4) {
+        std::cerr << "Usage: " << argv[0] << " <input file> <output file> <N>" << std::endl;
         return 1;
     }
 
-    return do_convolve(argv[1], argv[2]);
+    return do_convolve(argv[1], argv[2], atoi(argv[3]));
 }
 #endif

@@ -214,7 +214,7 @@ def map_to_x(map, device):
     x = torch.zeros((1, 1, map.shape[0], map.shape[1]), device=device)
     x[0, 0, map == NET_BOLT] = -1
     x[0, 0, map == NET_GROUND] = 1
-    x[0, 0, map == NET_ATTRACTOR] = 0.5
+    x[0, 0, map == NET_ATTRACTOR] = 0.8
     return x
 
 
@@ -227,14 +227,14 @@ def add_noise(map, radius=0.08):
 
 
 def simulate(model, map, start, end, device, eta=1):
-    add_noise(map, radius=20.4 / min(map.shape))
+    add_noise(map, radius=0.09)
     bolt = Bolt(map, start, end)
     while not bolt.is_complete():
         x = map_to_x(map, device)
         poisson = model(x)[0, 0].detach().cpu().numpy()
         bolt.add_new(map, poisson, eta)
 
-    intensities = bolt.get_intensities()
+    intensities = bolt.get_intensities(map.shape[0], map.shape[1])
     return map, intensities
 
 
@@ -243,10 +243,10 @@ def convolve(intensities):
     with open(temp_file, "wb") as f:
         f.write(intensities.tobytes())
 
-    subprocess.run(["./convolve", temp_file, temp_file])
+    subprocess.run(["./convolve", temp_file, temp_file, str(intensities.shape[0])])
 
     with open(temp_file, "rb") as f:
-        data = np.fromfile(f, dtype=np.float32).reshape((256, 256))
+        data = np.fromfile(f, dtype=np.float32).reshape(intensities.shape)
 
     os.remove(temp_file)
     return data
@@ -261,6 +261,8 @@ def load_model(filename, device):
 
 
 if __name__ == "__main__":
+    sys.setrecursionlimit(100000)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if len(sys.argv) != 3:
@@ -272,5 +274,5 @@ if __name__ == "__main__":
     map, intensities = simulate(model, map, start, end, device)
     intensities = convolve(intensities)
 
-    plt.imshow(intensities, cmap="gray")
+    plt.imshow(intensities, cmap="hot")
     plt.show()
